@@ -74,7 +74,7 @@ Cargo是管理Rust工程的一个工具，负责3件事：构建代码，下载�
 
 Rust 这样做主要是为了 **安全**。
 
-Rust 要求当**使用变量之前，必须要初始化变量**。
+Rust 要求**使用变量之前，必须要初始化变量**。
 
 下面代码在编译时，会产生警告：
 ```rust
@@ -102,7 +102,7 @@ Rust 要求当**使用变量之前，必须要初始化变量**。
 >     Compiling hello_world v0.0.1 (file:///home/you/projects/hello_world)
 >     src/main.rs:4:39: 4:40 error: use of possibly uninitialized variable: `x`
 >     src/main.rs:4     println!("The value of x is: {}", x);
->                                                          ^
+>                                                         ^
 >     note: in expansion of format_args!
 >     <std macros>:2:23: 2:77 note: expansion site
 >     <std macros>:1:1: 3:2 note: in expansion of println!
