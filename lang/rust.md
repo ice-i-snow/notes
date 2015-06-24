@@ -20,10 +20,14 @@ Cargo是管理Rust工程的一个工具，负责3件事：构建代码，下载�
 - 进入“projects”目录，并创建src文件夹。命令如下：`d:\Application\Rust stable 1.0\projects>mkdir src`
 - 拷贝main.rs文件到 src 目录下，命令：`d:\Application\Rust stable 1.0\projects>copy main.rs src/main.rs`
 - 在 projects 目录下创建“Cargo.toml”文件，并写入以下内容：
->     [package]
-> 	name = "hello_world"
-> 	version = "0.0.1"
-> 	authors = "[ice-i-snow <lib.chrome@gmail.com>]"
+
+>   
+```
+    [package]
+ 	name = "hello_world"
+ 	version = "0.0.1"
+ 	authors = "[ice-i-snow <lib.chrome@gmail.com>]"
+```
 
 
 [TOML](https://github.com/toml-lang/toml)格式规范。
