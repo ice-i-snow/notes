@@ -45,7 +45,7 @@ Cargo是管理Rust工程的一个工具，负责3件事：构建代码，下载�
 
 ## Rust语法 ##
 
-### 变量绑定（Variable Binding） ###
+### 1.变量绑定（Variable Binding） ###
 
 **普通的绑定方式：** `let (x, y) = (1, 2)` 表示将 1 赋值给 x ，将 2 赋值给 y 。
 
@@ -109,3 +109,130 @@ Rust 要求**使用变量之前，必须要初始化变量**。
 >     src/main.rs:4:5: 4:42 note: expansion site
 >     error: aborting due to previous error
 >     Could not compile `hello_world`.
+
+### 2.函数（Functions） ###
+
+无参数函数
+```rust
+    fn main() {
+ 
+    }
+```
+
+有参数的函数
+```rust
+    fn print_number(x: i32) {
+        println!("x is: {}", x); 
+    }
+```
+
+有多个参数的函数，参数之间使用逗号隔开
+```rust
+    fn main(){
+		print_sum(5, 6);
+	}
+    fn print_sum(x: i32, y: i32) {
+        println!("sum is: {}", x + y);
+    }
+```
+
+**参数必须要声明类型，否则会报错**。下面的代码会产生错误：
+```rust
+    fn print_sum(x, y) {
+        println!("sum is: {}", x + y);
+    }
+```
+
+错误信息如下：
+>     expected one of `!`, `:`, or `@`, found `)`
+>     fn print_number(x, y) {
+
+有返回值的函数
+```rust
+    fn add_one(x: i32) -> i32 {
+		x + 1
+	}
+```
+
+**只能返回一个值**
+
+**函数的最后一行表示返回值，并且不能添加分号，否则会报错。**下面的代码会产生错误：
+```rust
+    fn add_one(x: i32) -> i32 {
+		x + 1;
+	}
+```
+
+错误信息如下：
+>     error: not all control paths return a value
+>     fn add_one(x: i32) -i32 {
+>          x + 1;
+>     }
+> 
+>     help: consider removing this semicolon:
+>          x + 1;
+>               ^
+
+Rust中只存在两种语句：声明语句和表达式语句。其它的都是表达式。
+
+下面代码是错误的：
+```rust
+	let x = (let y = 5);	// expected identifier, found keyword `let`
+```
+
+下面的代码是正确的，但是返回值并非我们想要的：
+```rust
+	let mut y = 5;
+	let x = (y = 6);	//x has the value `()`, not `6`
+```
+
+**将赋值语句做为值赋给其它变量，会返回空元组 `()`。**
+
+在函数内部，使用 *return* 后，后面的语句不会被执行
+```rust
+	fn add_one(x: i32) -> i32 {
+		return x;
+
+		//此代码永远不会执行
+		x + 1
+	}
+```
+
+使用 *return* 返回值（这是一种糟糕的代码风格）
+```rust
+	fn add_one(x: i32) -> i32 {
+		return x + 1;
+	}
+```
+
+应该使用下面的代码：
+```rust
+	fn add_one(x: i32) -> i32 {
+		x + 1
+	}
+```
+
+**分散函数（Diverging Function)：中断当前的执行线程，并返回 `!` 类型的值，我们叫它‘分散’。**
+```rust
+	fn main(){
+		let x: i32 = diverges();
+
+		//线程中断，此代码永远不会执行
+		println!("Hello, x is {}", x);
+	}
+	fn diverges(){
+		pantic!("This function never returns!");
+	}
+```
+
+编译时，信息如下：
+>     src\main.rs:3:6: 3:7 warning: unused variable: `x`, #[warn(unused_variables)] on
+>     by default
+>     src\main.rs:3   let x: i32 = diverges();
+>                         ^
+
+执行时，信息如下：
+>     thread '<main>' panicked at 'This function never returns!', src\main.rs:8
+>     An unknown error occurred
+> 
+>     To learn more, run the command again with --verbose.
