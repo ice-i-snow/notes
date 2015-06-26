@@ -236,3 +236,151 @@ Rust中只存在两种语句：声明语句和表达式语句。其它的都是�
 >     An unknown error occurred
 > 
 >     To learn more, run the command again with --verbose.
+
+### 3.原生类型（Primitive Types） ###
+
+**布尔类型（Boolean）**
+```rust
+	let x = true;
+	let y: bool = false;
+```
+
+**字符类型（char）**
+```rust
+	let x = 'x';
+	let y: char = '*';
+```
+
+**数值类型（Numeric）**：有符号和无符号，固定长度和可变长度，浮点型和整型
+```rust
+	let x = 32;		// x 的类型默认为 i32
+	let y = 1.0;	// y 的类型默认为 f64
+```
+
+**数组（Array）**：[T，N]
+```rust
+	let a = [1, 2, 3];	// a: [i32; 3]
+	let mut m = [1, 2, 3];	// m: [i32; 3]
+```
+
+可以使用下面的方式，快速初始化具有相同数值的数组：
+```rust
+	// 每个元素的值都是 `0`
+	let a = [0; 20];	// a: [i32; 20]
+```
+
+使用 `a.len()` 返回数组的长度，例如：
+```rust
+	let a = [1, 2, 3];
+	println!("a has {} elements.", a.len());
+```
+
+通过下标获取数组中的某个元素值（下标从 0 开始）：
+```rust
+	let names = ["Graydon", "Brian", "Niko"]; // names: [&str; 3]
+	println!("The second name is: {}", names[1]);
+```
+
+**切片（Slices）**
+```rust
+	let a = [0, 1, 2, 3, 4];
+	let middle = &a[1..4];	// 获取数组元素：1, 2, 3 作为 a 的切片
+	let complete = &a[..];	// 包含 a 的所有元素的切片
+```
+
+**字符串（str）**
+
+`&str` 表示静态的字符串，固定长度，无法修改。
+
+`String` 保存在堆中，是可以变化的。通常使用 `&str` 类型的 `to_string()` 方法创建。使用 `&` 符号可以转换成 `&str` 类型。
+```rust
+	// 代码片段一
+	let string = "Hello World";	// string: &'static str
+	
+	// 代码片段二
+	let mut s = "Hello".to_string();
+	println!("{}", s);	// 打印结果： Hello
+	s.push_str(", World");
+	println!("{}", s);	// 打印结果： Hello,String.
+
+	// 代码片段三
+	fn takes_slice(slice: &str){
+		println!("Got {}", slice);
+	}
+	fn main(){
+		let s = "Hello".to_string();
+		takes_slice(&s);
+	}
+```
+
+**字符串类型不提供索引**，下面的代码是错误的：
+```rust
+	let s = "我的学习笔记";
+	println!("The first letter of s is {}", s[0]);	// 这会产生错误
+```
+
+错误信息：
+>     src\main.rs:26:43: 26:49 error: the trait `core::ops::Index<_>` is not implement
+>     ed for the type `str` [E0277]
+>     src\main.rs:26  println!("The second letter of s is {}", str[1]);       // Error
+>                                                              ^~~~~~
+
+通过以下方式，访问字符串中的某个字符：
+```rust
+	let s = "我的学习笔记";
+	let f = s.chars().nth(0);
+	println!("The first letter of s is {}", f);
+```
+
+此代码在编译过程中出现错误（按照文档编写，竟然报错，这是为什么啊？），信息如下：
+>     src\main.rs:32:42: 32:60 error: the trait `core::fmt::Display` is not implemente
+>     d for the type `core::option::Option<char>` [E0277]
+>     src\main.rs:32  println!("The first letter of s is {}", f);
+>                                                             ^
+
+**元组（Tuples)**：定长、有序、异构的列表。
+```rust
+	let t = (1, "hello");
+	let t: (i32, &str) = (1, "hello");
+```
+
+如果两个元组的数据类型相同，数量一致，那么可以将一个元组赋值给另一个元组，例如：
+```rust
+	let mut x = (1, 2);
+	let y = (3, 4);
+	println!("x = {:?}; y = {:?}", x, y);	// 打印结果：x = (1, 2); y = (3,4)
+
+	x = y;
+	println!("x is {:?}", x);	// 打印结果： x is (3, 4)
+```
+
+使用元组为多个变量赋值：
+```rust
+	let (l, m, n) = (9, 8, 7);
+	println!("l={}, m = {}, n = {}", l, m, n);	// 打印结果：l = 9, m = 8, n = 7
+```
+
+定义只有一个元素的元组：
+```rust
+	let t = (0,);
+	println!("t = {:?}", t);	// 打印结果： t = (0,);
+```
+
+访问元组的任意元素：
+```rust
+	let tuple = ("I", "am", "ice-i-snow");
+	let a = tuple.0;
+	let b = tuple.1;
+	let c = tuple.2;
+	println!("a = {}, b = {}, c = {}", a, b, c);	// 打印结果：a = I, b = am, c = ice-i-snow
+```
+
+**函数（Functions）**
+```rust
+	fn foo(x: i32) -> i32{
+		x
+	}
+	let f: fn(i32) -> i32 = foo;
+	println!("f(12) is {}", f(12));	// 打印结果： f(12) is 12
+```
+
