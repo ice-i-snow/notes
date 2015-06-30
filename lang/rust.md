@@ -407,4 +407,51 @@ Rust有两种注释：行注释和文档注释
 		x + 1
 	}
 
+### 5.if 表达式（if） ###
 
+if 的用法：
+```rust
+	let x = 5;
+	if x == 5 {
+		println!(" x is five.");
+	}
+```
+
+可以添加 else：
+```rust
+	let x = 5;
+	if x == 5 {
+		println!(" x is five.");
+	} else｛
+		println!(" x is not five :(");
+	｝
+```
+
+如果有多个分支，可以添加 else if：
+```rust
+	let x = 5;
+	if x == 5 {
+		println!(" x is five.");
+	} else if x == 6 {
+		println!(" x is six.");
+	} else {
+		println!(" x is not five or six :(");
+	}
+```
+
+上面都是 if 表达式的标准用法，我们还可以这样用：
+```rust
+	// 通过 if 表达式对变量赋值
+	let x = 5;
+	let y = if x == 5 {
+		10
+	} else {
+		15
+	};	// y : i32
+```
+
+其实，我们可以这样写：
+```rust	
+	let x = 5;
+	let y = if x == 5 { 10 } else { 15 };	// y : i32
+```
