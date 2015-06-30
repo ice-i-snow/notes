@@ -455,3 +455,22 @@ if 的用法：
 	let x = 5;
 	let y = if x == 5 { 10 } else { 15 };	// y : i32
 ```
+
+### 6.for 循环（for Loops） ###
+
+for 的用法：
+```rust
+	// 采取前闭后开的原则，只打印到9，不会打印10
+	for x in 0..10 {
+		println!("{}", x);	// x : i32
+	}
+```
+
+抽象结构：
+```rust
+	for var in expression {
+		code
+	}
+```
+
+Rust 中的 **for 循环不允许手动地操作循环的每一个元素**，它认为这样做是复杂的、容易出错的。
