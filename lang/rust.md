@@ -474,3 +474,53 @@ for 的用法：
 ```
 
 Rust 中的 **for 循环不允许手动地操作循环的每一个元素**，它认为这样做是复杂的、容易出错的。
+
+### 7.while 循环（while Loops） ###
+
+while 的用法：
+```rust
+	let mut x = 5;
+	let mut done = false;
+
+	while !done {
+		x += x - 3;
+
+		println!("{}", x);
+
+		if x % 5 == 0 {
+			done = true;
+		}
+	}
+```
+
+while 可以实现无限循环：
+```rust
+	while true {}
+```
+
+Rust中，推荐使用 *loop* 关键字实现无限循环：
+```rust	
+	loop {}
+```
+
+*break* 表示结束并跳出当前循环：
+```rust
+	let mut x = 5;
+	loop {
+		x += x - 3;
+
+		println!("{}", x);
+
+		if x % 5 == 0 { break; }		
+	}
+```
+
+*continue* 表示直接进入下一个循环：
+```rust
+	for x in 0..10 {
+		if x % 2 == 0 { continue; }
+
+		println!("{}", x);
+	}
+```
+
