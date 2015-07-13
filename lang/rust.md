@@ -649,3 +649,279 @@ Rust 确保每一个资源都是精确的单一绑定。我们可以将一个已
 啊！返回的类型、返回行、和调用函数变得更复杂。
 
 幸运的是，Rust 提供了一个特性 ‘借用（borrowing）’，会帮助我们解决这个问题。这是下一章节的主题。
+
+### 9.引用和借用（Reference and Borrowing） ###
+
+需要开发人员重点掌握和理解的内容。
+
+	1.ownership(所有权)
+	2.borrowing(借用)
+	3.lifetimes()
+
+**元(Meta)**
+
+Rust 注重安全和速度，通过‘零消耗抽象概念（zero-cost abstraction）’实现。在这个指南中，我们讨论的所有的分析都是在编译期进行，这些特性不会消耗任何运行时间。
+
+尽管如此，Rust 也有一些必要的消耗：学习曲线。初学者认为他们的程序是有效的，但是 Rust 编译器却拒绝编译。程序员认为 Rust 应该运行的方式，实际上，Rust 并没有已有的规则与之匹配。无论怎样，随着使用 Rust 经验的提升，情况会慢慢好转。
+
+**借用（Borrowing）**
+
+在所有权章节的最后，我们编写了一个很糟糕的函数：
+```rust
+	fn foo(v: Vec<i32>, v2: Vec<i32>) -> (v1: Vec<i32>, v2: Vec<i32>, i32){
+		// 使用 v1和v2 做一些工作
+
+		// 返回所有权和函数的结果
+		(v1, v2, 42)
+	}
+	
+	let v1 = vec![1, 2, 3];
+	let v2 = vec![1, 2, 3];
+
+	let (v1, v2, answer) = foo(v1, v2);
+```
+这不符合 Rust 的语言习惯，不过，这也没有用到借用。首先看这里的代码：
+```rust
+	fn foo(v: &Vec<i32>, v2: &Vec<i32>) -> i32 {
+		// 使用 v1和v2 做一些工作
+
+		// 返回函数的结果
+		42
+	}
+
+	let v1 = vec![1, 2, 3];
+	let v2 = vec![1, 2, 3];
+
+	let answer = foo(&v1, &v2);
+
+	// 我们可以在这里调用 v1 和 v2
+```
+
+我们使用引用类型： `&Vec<i32>` 代替原先的类型 `Vec<T>` 作为参数，并且传入 `&v1` 和 `&v2` 代替原来的 `v1` 和 `v2`。我们把 `&T` 类型称为‘引用’，它不会拥有资源，而是借用所有权。当离开作用域时，借用绑定不会取消分配的资源。这意味着，当我们调用 `foo()`函数后，依然可以再次使用原有的绑定。
+
+**引用类似于绑定，是不可变的**。这意味着在 `foo()` 函数里面，我们不能改变向量：
+```rust
+	fn foo(v: &Vec<i32>) {
+		v.push(5);
+	}
+
+	let v = vec![];
+
+	foo(&v);
+```
+
+这样写，会报错：
+
+>     error: cannot borrow immutable borrowed content `*v` as mutable
+>     v.push(5);
+>     ^
+
+我们不允许增加一个值改变向量。
+
+**&mut引用（&mut refernces）**
+
+这里介绍第二种引用类型： `&mut T`。**‘可变引用’允许你修改借用的资源**。例如：
+```rust
+	let mut x = 5;
+	{
+		let y = &mut x;
+		*y += 1;
+	}
+	println!("x is {}", x);
+```
+
+打印结果为 `6`。我们创建了 `y` ，一个指向 `x` 的可变引用，然后在 `y` 上加1。你注意到 `x` 已经被标注为 `mut`，如果不这样做，就不能为一个不可变的值创建一个可变引用。
+
+另外，`&mut` 引用类似引用。两者之间有很大的区别以及如何交互。在上面的例子中，你会发现一些可疑的情况，因为我们需要额外的作用域以及 `{` 和 `}` 。如果我们删除它们，就会报错：
+
+>     error: cannot borrow `x` as immutable because it is also borrowed as mutable
+>     println!("{}", x);
+>                    ^
+>     note: previous borrow of `x` occurs here; the mutable borrow prevents
+>     subsequent moves, borrows, or modification of `x` until the borrow ends
+>         let y = &mut x;
+>                      ^
+>     note: previous borrow ends here
+>     fn main() {
+> 
+>     }
+>     ^
+
+事实证明，这是有规则的。
+
+**规则（The Rules）**
+
+Rust 的借用规则。
+
+首先，借用必须持续在一个比所有权更小的作用域内。这两种借用的方式你可以有一个或多个，但是，在同一时间不能同时出现：
+
+- 0 到 N 个对资源的引用（&T）
+- 只有一个可变的引用（&mut）
+
+你可能注意到，这和定义数据竞争是非常相似的，尽管不是完全一样：
+
+>     数据竞争：当一个或多个指针在同一时间使用同一个内存地址时，只能有一个进行写操作，
+>     这些操作不允许同步。
+
+使用引用，因为不能进行写操作，所以你可能会有很多想法。如果你想进行写操作，对于同一个内存你需要有两个或多个指针，并且在同一时间只能有一个 `&mut`。这就是 Rust 在编译期如何阻止数据竞争的：如果我们打破规则，就会得到错误。
+
+通过这个思路，让我们再次细想一下例子。
+
+**作用域思想（Thinking in scopes）**
+
+这是一段代码：
+```rust
+	let mut x = 5;
+	let y = &mut x;
+
+	*y += 1;
+
+	pringln!("x is {}", x);
+```
+
+这段代码会呈献给我们这个错误：
+
+>     error: cannot borrow `x` as immutable because it is also borrowed as mutable
+>     println!("{}", x);
+>                    ^
+
+这是因为我们违反了规则：我们已经定义了 `&mutT` 指向 `x` ，不能再创建任何的 `&T` 。下面的注释示意我们如何考虑这个问题：
+
+>     note: previous borrow ends here
+>     fn main() {
+> 
+>     }
+>     ^
+
+换句话说，可变借用一直持续到例子的结束。我们期望的是，在尝试调用 `println！` 之前，可变借用会结束，并且变成不可变调用。在 Rust 中，借用依赖于自身有效的作用域。我们的作用域是这样的：
+```rust
+	let mut x = 5;
+
+	let y = &mut x;    	// -+ &mut borrow of x starts here
+                   		//  |
+	*y += 1;           	//  |
+                   		//  |
+	println!("{}", x); 	// -+ - try to borrow x here
+                   		// -+ &mut borrow of x ends here 
+```
+
+这个作用域发生了冲突：当 `y` 在作用域中，我们不能再创建 `&x` 。所以，我们需要增加大括号：
+```rust
+	let mut x = t;
+	{
+		let y = &mut x;		// -+ &mut borrow starts here
+		*y += 1;			//  |
+	}						// -+ ... and ends here
+	println!("x is {}", x);	// <- try to borrow x here
+```
+
+这是没有问题的。当我们创建一个不可变借用时，可变借用已经离开了它的作用域。作用域的关键是看一个借用能够持续多长时间。
+
+**作用域限制议题（Issues borrowing prevents）**
+
+为什么会有这些约束规则？其实，正如我们所见，这些规则是用来约束数据竞争的。什么样的问题导致数据竞争？这有一些例子。
+
+**迭代器无效（iterator invalidation）**
+
+这是一个“迭代器无效”的例子，当你试图修改正在迭代的集合时，Rust 的借用检查器会阻止这种情况发生：
+```rust
+	let mut v = vec![1, 2, 3];
+	
+	for i in &v {
+		println!("{}", i); 
+	}
+```
+
+这回打印出 1 至 3。当我们循环向量时，只能获取元素的引用。`v` 借用它自身为不可变的，这意味着在整个循环过程中，我们无法修改 `v`。
+```rust
+	let mut v = vec![1, 2, 3];
+	
+	for i in &v {
+		println!("{}", i); 
+		v.push(4);
+	}
+```
+
+这样写，会报错：
+
+>     error: cannot borrow `v` as mutable because it is also borrowed as immutable
+>     v.push(4);
+>     ^
+>     note: previous borrow of `v` occurs here; the immutable borrow prevents
+>     subsequent moves or mutable borrows of `v` until the borrow ends
+>     for i in &v {
+>               ^
+>     note: previous borrow ends here
+>     for i in &v {
+>         println!(“{}”, i);
+>         v.push(4);
+>     }
+>     ^
+
+我们不能修改 `v`，因为它被循环借用了。
+
+**释放内存后使用（use after free)**
+
+引用必须和它引用的资源存活相同的时间。Rust 会检查引用的作用域，确定是否正确。
+
+如果 Rust 没有检查到这个属性，我们可能会不小心使用一个无效的引用。例如：
+```rust
+	let y: &i32;
+	{
+		let x = 5;
+		y = &x;
+	}
+	println!("{}", y);
+```
+
+我们会得到下面的错误：
+
+>     error: `x` does not live long enough
+>         y = &x;
+>              ^
+>     note: reference must be valid for the block suffix following statement 0 at
+>     2:16...
+>     let y: &i32;
+>     { 
+>         let x = 5;
+>         y = &x;
+>     }
+> 
+>     note: ...but borrowed value is only valid for the block suffix following
+>     statement 0 at 4:18
+>         let x = 5;
+>         y = &x;
+>     }
+
+换句话说，只有 `x` 存在 `y` 才会有有效的作用域。当 `x` 消失后，对它的引用也会变成无效的。所以，错误信息说借用“存活的时间不够长”，因为它不是有效的正确时间。
+
+相同的问题也发生：引用在被引用的变量之前已经声明
+```rust
+	let y : i32;
+	let x = 5;
+	y = &x;
+
+	println!("{}", y);
+```
+
+我们会得到下面的错误：
+
+>     error: `x` does not live long enough
+>     y = &x;
+>          ^
+>     note: reference must be valid for the block suffix following statement 0 at
+>     2:16...
+>         let y: &i32;
+>         let x = 5;
+>         y = &x;
+>     
+>         println!("{}", y);
+>     }
+> 
+>     note: ...but borrowed value is only valid for the block suffix following
+>     statement 1 at 3:14
+>         let x = 5;
+>         y = &x;
+>     
+>        println!("{}", y);
+>     }
