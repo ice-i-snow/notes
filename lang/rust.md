@@ -2044,3 +2044,107 @@ Rust 再次检查了所有情况，它要求你为每一个枚举的变量都有
 
 向量有更多有用的方法，请阅读它们的 API。
 
+### 18.字符串（Strings） ###
+	
+字符串是个很重要的概念，任何程序员都要掌握。基于 Rust 系统本身的关注点，它的字符串处理方法和其他语言略有不同。任何时候在你拥有可变长度的数据结构时，都是很棘手的，恰恰字符串就是可变的数据结构。话虽如此，Rust 的字符串还是和其它系统有区别，例如 C。
+
+让我们深入细节。‘string’是有序的 Unicode 值编码成 UTF-8 字节流。所有的字符串保证都是合法的 UTF-8 顺序的编码。另外，不像其他语言，字符串不能以空结束，可以包含空字节。
+
+Rust 有两种**字符串类型： `&str` 和 `String`**。首先讨论 **`&str`。它被称作‘字符串切片（string slices）’**。字符串的类型： `&'static str`。
+
+```rust
+	let string = "Hello there."; // string: &'static str
+```
+
+这个字符串是静态分配的，这意味着它保存在编译系统的内部并且一直存在于整个运行期。`string`为静态分配绑定了引用。字符串切片有固定长度，不能改变。
+
+另一方面，`String` 是分配到内存堆的字符串。此时的字符串是可变的，但仍然保证是 UTF-8 。创建 `String` 的通常做法是使用 `to_string` 方法将字符串切片转换成 `String` 。
+
+```rust
+	let mut s = "Hello".to_string(); // mut s: String
+	println!("{}", s);
+	
+	s.push_str(", world.");
+	println!("{}", s);
+```
+
+使用 `&` 可以将 `String` 强制转换成 `&str`。
+
+```rust
+	fn takes_slice(slice: &str) {
+	    println!("Got: {}", slice);
+	}
+	
+	fn main() {
+	    let s = "Hello".to_string();
+	    takes_slice(&s);
+	}
+```
+
+`String` 转换成 `&str` 代价很小，但是 `&str` 转换成 `String` 牵扯到内存分配。所以，除非你需要，否则不要这么做。
+
+**索引（Indexing）**
+
+因为字符串是合法的 UTF-8，所以不需要提供索引：
+
+```rust
+	let s = "hello";
+
+	println!("The first letter of s is {}", s[0]); // 错误!!!
+```
+
+通常地，使用 `[]` 可以款速获取向量。但是，由于在 UTF-8 编码的字符串中的每一个字符都是多字节的，所以，你需要处理完整个字符串才能找到具体位置（nᵗʰ）的字母。这种操作显然是非常昂贵的，我们不希望误入歧途。此外，‘字母（letter）’没有在 Unicode 中定义，确实如此。我们可以选择查看字符串中的独立字节或者是代码点：
+
+```rust
+	let hachiko = "忠犬ハチ公";
+	
+	for b in hachiko.as_bytes() {
+	    print!("{}, ", b);
+	}
+	
+	println!("");
+	
+	for c in hachiko.chars() {
+	    print!("{}, ", c);
+	}
+	
+	println!("");
+```
+
+打印结果：
+
+> 229, 191, 160, 231, 138, 172, 227, 131, 143, 227, 131, 129, 229, 133, 172, 
+忠, 犬, ハ, チ, 公, 
+
+如你所见，字节比字符要多。
+
+你可以像索引那样获取值：
+
+```rust
+	let dog = hachiko.chars().nth(1); // 有点像 hachiko[1]
+```
+
+着重强调一下，我们已经访问了整个 `char` 列表。
+
+**连结（Concatenation）**
+
+如果有一个 `String`，可以在它后面连结 `&str`：
+
+```rust
+	let hello = "Hello ".to_string();
+	let world = "world!";
+	
+	let hello_world = hello + world;
+```
+
+如果有两个 `String`，你需要使用 `&`：
+
+```rust
+	let hello = "Hello ".to_string();
+	let world = "world!".to_string();
+	
+	let hello_world = hello + &world;
+```
+
+这是因为 `&String` 能够自动强制转换成 `&str`，这个特性被称为‘强制转换（Deref coercion）’。
+
