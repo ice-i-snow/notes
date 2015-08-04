@@ -1287,3 +1287,161 @@ RefcCell 通过 `borrow_mut` 方法获取 `&mut` 引用，指向自身的内部�
 
 将会打印 `y: Cell { value: 7}`,我们成功地更新了 `y`。
 
+### 12.结构体（Structs） ###
+
+结构体是创建复杂数据类型的一种方式。例如，我们在2d空间计算相关的坐标，我们同时需要 `x` 和 `y` 的值：
+
+```rust
+	let origin_x = 0;
+	let origin_y = 0;
+```
+
+结构体然我们将这两项组合成一个独立的、统一的数据类型：
+
+```rust
+	struct Point {
+		x: i32,
+		y: i32,
+	}
+
+	fn main {
+		let origin = Point {x: 0, y: 0};
+		println!("The origin is at ({},{})", origin.x, origin.y);
+	}
+```
+
+这段代码展示了很多信息，让我们对它进行分解。我们使用 `struct` 关键字声明了一个 `struct`，接着取了一个名字。依照惯例，`struct`s 以大写字母开头并使用驼峰命名：`PointInSpace`，而不是这种方式 `Point_In_Space`。
+
+我们使用 `let` 创建结构体的一个实例，通常，我们使用 `Key: Value` 的语法样式创建每一个字段。字段顺序不需要和声明时一致。
+
+最后，因为字段有名字，所以我们可以使用点符号的方式 `origin.x` 访问字段。
+
+结构体中的值默认是不可变的，就像 Rust 中的其他绑定。使用 `mut` 让它们变成可变的：
+
+```rust
+	struct Point {
+		x: i32,
+		y: i32,
+	}
+
+	fn main {
+		let mut point = Point{x: 0, y: 0};
+		point.x = 5;
+
+		println!("The point is at ({}, {})", point.x, point.y);
+	}
+```
+
+打印结果是：
+> The point is at (5, 0)
+
+在语言级层面上，Rust 不会提供字段的可变性，所以，你不能编写下面的代码：
+
+```rust
+	struct Point {
+		mut x: i32,
+		y: i32
+	}
+```
+
+可变是绑定的属性，不是结构体自身的属性。如果你想使用字段级可变，这看起来很奇怪，但它确实大大简化了一些事情。它甚至可以让你在短时间内变成可变：
+
+```rust
+	struct Point {
+	    x: i32,
+	    y: i32,
+	}
+	
+	fn main() {
+	    let mut point = Point { x: 0, y: 0 };
+	
+	    point.x = 5;
+	
+	    let point = point; // 新的绑定不允许修改
+	
+	    point.y = 6; // 这样做会报错
+	}
+```
+
+**更新语法（Update Syntax）**
+
+`struct` 含有 `..`，用来表示使用其它结构体副本中的某些值。例如：
+
+```rust
+	struct Point3d {
+		x: i32,
+		y: i32,
+		z: i32,
+	}
+
+	fn main {
+		let mut point = Point3d{x: 0, y: 0, z: 0};
+		point = Point3d{y:1, .. point};
+	}
+```
+
+这段代码为 `point` 重新设置了 `y`，`x` 和 `z` 保留原来的值。它不需要其它相同的 `struct`，当你创建一个新的时可以使用这种语法，它会拷贝你没有明确指明的值：
+
+```rust
+	let origin = Point3d {x: 0, y: 0, z: 0};
+	let point = Point3d {z: 1, x: 2, .. origin};
+```
+
+**元组结构体（Tuple structs）**
+
+Rust 有另外一种数据结构，比较像元组和结构体的混合体，称之为‘元组结构体’。元组结构体有名字，但是它的字段没有名字：
+
+```rust
+	struct Color(i32, i32, i32);
+	struct Point(i32, i32, i32);
+```
+
+虽然它们具有相同的值，但是也不会相等：
+
+```rust
+	let color = Color(0, 0, 0);
+	let point = Point(0, 0, 0);
+```
+
+使用结构体一直都比使用元组结构体要好很多，我们将会编写想下面的 `Color` 和 `Point` 进行替换：
+	
+```rust
+	struct Color {
+		red: i32,
+		blue: i32,
+		green: i32,
+	}
+
+	struct Point {
+		x: i32,
+		y: i32,
+		z: i32,
+	}
+```
+
+现在有了真正的名字，而非位置。对于结构体来说，好的名字很重要。
+
+有一种情况，当是元组结构体时非常有用，尽管那种情况下元组结构体只有一个元素。我们称之为‘新类型’模式，因为它允许你创建一个新的类型，用来区分它包含的值和它自身的语义：
+
+```rust
+	struct Inches(i32);
+
+	let length = Inches(10);
+	
+	let Inches(integer_length) = length;
+	println!("length is {} inches", integer_length);
+```
+
+如你所见，你可以使用 `let` 重置，获取内在的整数类型，就像使用常规的元组。在此场景中，`let Inches(integer_length)` 将 `10` 赋值给 `integer_length`。
+
+**单元模仿结构体（Unit-like structs）**
+
+你可以定义一个没有任何成员的结构体：
+
+```rust
+	struct Electron;
+```
+
+这种结构体被称为‘unit-like’，因为它类似于空元组，`()`，有时被称为‘unit’。类似于元组结构体，它定义了一种新类型。
+
+这是很少有用的（尽管它有时作为标记类型），但是综合其他特性，他会非常有用。例如，一个类库请求创建一个结构体，需要实现某些特征来处理事件。如果你不知道在结构体中要存放什么数据，就可以创建一个单元模仿结构体。
