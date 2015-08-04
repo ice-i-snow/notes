@@ -1483,3 +1483,75 @@ Rust 有另外一种数据结构，比较像元组和结构体的混合体，称
 ```
 
 没有提供这种操作看起来很受限制，但是这样的限制是可以克服的。这有两种方式：自己实现等式或者使用匹配表达式模式匹配变量，匹配会在下一章节学习。现在，我们对 Rust 实现等式知道的很少，但是我们会在特性章节找到答案。
+
+### 14.匹配（Match） ###
+
+通常，简单的 `if/else` 不能满足有更多选项的场景。而且，条件可能会很复杂。Rust 有关键字 `match`，它更加的强大，允许你替换复杂的 `if/else` 分组。来看看:
+
+```rust
+	let x = 5;
+	match x {
+		1 => println!("one"),
+		2 => println!("two"),
+	    3 => println!("three"),
+	    4 => println!("four"),
+	    5 => println!("five"),
+	    _ => println!("something else"),
+	}
+```
+
+`match` 有一个表达式，然后是基于值的分支。每一个分支的‘枝干（arm）’都是这种形式 `val => expression`。当值被匹配时，表达式就会被解析。我们称之为 `match` 是因为术语‘模式匹配（pattern match）’，`match` 是它的实现。那有一个关于模式的完整章节，涵盖了所有可能的模式。
+
+所以，匹配最大的优势是什么？当然有一些。首先，`match` 执行 ‘穷尽性检查（exhuastiveness checking）’。正如你所见的最后一个枝干，使用了下滑线(`_`)。如果我们把它删除，Rust 会给我们提示一个错误：
+
+> 	error: non-exhaustive patterns: `_` not covered
+
+换句话说，Rust 尝试提醒我们忘记了一个值。因为 `x` 是整型，Rust 知道 `x` 可以有许多不同的值-例如：`6`。如果没有 `_`，那么就没有枝干和它匹配，Rust 就会拒绝编译这段代码。`_` 扮演类似‘捕获所有枝干（catch-all arm）’的角色。现在，我们拥有一个对应所有可能的 `x` 值的枝干，所以我们的程序可以编译成功。
+
+**`match` 也是一个表达式**，这意味着可以应用于 `let` 绑定的右侧或者直接当表达式使用：
+
+```rust
+	let x = 5;
+
+	let number = match x {
+	    1 => "one",
+	    2 => "two",
+	    3 => "three",
+	    4 => "four",
+	    5 => "five",
+	    _ => "something else",
+	};
+```
+
+有时，这也是类型转换的一种很好的方式。
+
+**枚举中的匹配（Matching on enums）**
+
+`match` 关键字的另一个重要的用法是处理枚举中可能的变量：
+
+```rust
+	enum Message {
+	    Quit,
+	    ChangeColor(i32, i32, i32),
+	    Move { x: i32, y: i32 },
+	    Write(String),
+	}
+	
+	fn quit() { /* ... */ }
+	fn change_color(r: i32, g: i32, b: i32) { /* ... */ }
+	fn move_cursor(x: i32, y: i32) { /* ... */ }
+	
+	fn process_message(msg: Message) {
+	    match msg {
+	        Message::Quit => quit(),
+	        Message::ChangeColor(r, g, b) => change_color(r, g, b),
+	        Message::Move { x: x, y: y } => move_cursor(x, y),
+	        Message::Write(s) => println!("{}", s),
+	    };
+	}
+```
+
+Rust 再次检查了所有情况，它要求你为每一个枚举的变量都有一个匹配。如果你离开了，它会给你一个编译器错误，除非你使用 `_`。
+
+和之前的 `match` 使用不同，你不需要使用普通的 `if` 描述来实现。你可以使用 `if let` 的描述，它看起来像 `match` 的简写。
+
