@@ -1555,3 +1555,243 @@ Rust 再次检查了所有情况，它要求你为每一个枚举的变量都有
 
 和之前的 `match` 使用不同，你不需要使用普通的 `if` 描述来实现。你可以使用 `if let` 的描述，它看起来像 `match` 的简写。
 
+### 15.模式（Patterns） ###
+
+模式在 Rust 中很普遍。我们在变量绑定、匹配描述等地方使用。让我们开启一段模式应用的旋风之旅。
+
+快速回忆：你可以直接匹配字母，`_` 扮演匹配‘任何’情况的角色：
+
+```rust	
+	let x = 1;
+	
+	match x {
+		1 => println!("one"),
+		2 => println!("two"),
+		3 => println!("three"),
+		_ => println!("anything"),
+	}
+```
+
+打印结果是：`one`。
+
+**多模式（Multiple patterns）**
+
+你可以使用 `|` 匹配多个模式：
+
+```rust
+	let x = 1;
+
+	match x {
+		1 | 2 => println!("one or two"),
+		3 => println!("three"),
+		_ => println!("anything"),
+	}
+```
+
+打印结果是：`one or two`。
+
+**范围（Ranges）**
+
+你可以使用 `...` 匹配值的范围：
+
+```rust
+	let x = 1;
+	
+	match x {
+		1 ... 5 => println!("one through five"),
+		_ => println!("anything"),
+	}
+```
+
+打印结果是：`one or two`。
+
+范围经常应用于整型和字符型：
+
+```rust
+	let x = '*';
+
+	match x {
+		'a' ... 'j' => println!("early letter"),
+		'k' ... 'z' => prinltn!("late letter"),
+		_ => prinltln!("something else"),
+	}
+```
+
+打印结果是：`something else`。
+
+**绑定（Bindings）**
+
+你可以使用 `@` 给值绑定名称：
+
+```rust
+	let x = 1;
+
+	match x {
+	    e @ 1 ... 5 => println!("got a range element {}", e),
+	    _ => println!("anything"),
+	}
+```
+
+打印结果是：`got a range element 1`。当你想完成一个数据结构一部分的复杂匹配时，它是有用的：
+
+```rust
+	#[derive(Debug)]
+	struct Person {
+	    name: Option<String>,
+	}
+	
+	let name = "Steve".to_string();
+	let mut x: Option<Person> = Some(Person { name: Some(name) });
+	match x {
+	    Some(Person { name: ref a @ Some(_), .. }) => println!("{:?}", a),
+	    _ => {}
+	}
+```
+
+打印结果是 `Some("Steve")`: 我们给内部的 `name` 绑定了 `a`。
+
+如果你同时使用 `@` 和 `|`，你要确定模式的每一部分都要绑定名称：
+
+```rust
+	match x {
+		e @ 1 ... 5 | e @ 8 ... 10 => println!("got a range element {}", e),
+		_ => println!("anything"),
+	}
+```
+
+**忽略变量（Ignoring variants）**
+
+如果你相匹配枚举变量，你可以使用 `..` 忽略变量的值和类型：
+
+```rust
+	enum OptionalInt {
+	    Value(i32),
+	    Missing,
+	}
+	
+	let x = OptionalInt::Value(5);
+	
+	match x {
+	    OptionalInt::Value(..) => println!("Got an int!"),
+	    OptionalInt::Missing => println!("No such luck."),
+	}
+```
+
+打印结果是 `Got an int!`。
+
+**保护（Guards）**
+
+你可以使用 `if` 介绍 ‘匹配保护（match guards）’：
+
+```rust
+	enum OptionalInt {
+	    Value(i32),
+	    Missing,
+	}
+	
+	let x = OptionalInt::Value(5);
+	
+	match x {
+	    OptionalInt::Value(i) if i > 5 => println!("Got an int bigger than five!"),
+	    OptionalInt::Value(..) => println!("Got an int!"),
+	    OptionalInt::Missing => println!("No such luck."),
+	}
+```
+
+打印结果是 `Got an int!`。
+
+**引用和可变引用（ref and ref mut)**
+
+使用 `ref` 关键字获取引用：
+
+```rust
+	let x = 5;
+
+	match x {
+	    ref r => println!("Got a reference to {}", r),
+	}
+```
+
+打印结果是 `Got a reference to 5`。
+
+这段代码中，匹配内部的 `r` 的类型是 `i32`。换句话说，关键字 `ref` 创建了一个引用在模式中使用。如果你需要可变的引用，`ref mut` 会使用相同的方式：
+
+```rust
+	let x = 5;
+
+	match x {
+	    ref mut mr => println!("Got a mutable reference to {}", mr),
+	}
+```
+
+**调整（Destructuring）**
+
+如果你有类似结构体的复杂的数据类型，你可以在模式内进行调整：
+
+```rust
+	struct Point {
+		x: i32,
+		y: i32,
+	}
+
+	fn main {
+		let origin = Point {x: 0, y: 0};
+
+		match origin {
+			Point {x: x, y: y} => println!("({}, {})", x, y);
+		}
+	}
+```
+
+如果你只关心它们的值，就不需要列出全部的名称：
+
+```rust
+	struct Point {
+		x: i32,
+		y: i32,
+	}
+
+	fn main {
+		let origin = Point {x: 0, y: 0};
+
+		match origin {
+			Point {x: x, ..} => println!("x is {}", x);
+		}
+	}
+```
+
+打印结果：`x is 0`。
+
+你可以将此种方式的匹配应用于任何成员，不仅仅是第一个：
+
+```rust
+	struct Point {
+		x: i32,
+		y: i32,
+	}
+
+	fn main {
+		let origin = Point {x: 0, y: 0};
+
+		match origin {
+			Point {x: x, ..} => println!("x is {}", x);
+		}
+	}
+```
+
+打印结果：`y is 0`。
+
+‘调整’可以应用在类似元组、枚举这种复杂的数据类型。
+
+**混合匹配（Mix and Match）**
+
+哇哦！这是一种非常不同的匹配，我们称之为混合匹配。这取决于你怎么做：
+
+```rust
+	match x {
+	    Foo { x: Some(ref name), y: None } => ...
+	}
+```
+
+模式很强大，好好掌握它。
+
