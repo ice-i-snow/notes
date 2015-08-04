@@ -1994,3 +1994,53 @@ Rust 再次检查了所有情况，它要求你为每一个枚举的变量都有
 
 在这里，我们创建了另外一个结构体：`CircleBuilder`。在它内部我们定义了构造方法。在 `Circle` 中我们也定义了 `area()` 方法。我们还定义了另外一个方法： `CircleBuilder::finalize()`。这个方法通过构造器创建最终的 `Circle`。现在，我们已经使用类型系统执行我们的关注问题：我们使用 `CircleBuilder` 的这些方法约束创建我们想创建的圆。
 
+### 17.向量（Vectors） ###
+
+‘向量（vector）’是动态或‘可增长（growable）’，通过标准的函数类型 `Vec<T>` 实现。`T` 意味着向量可以是任何类型（查看泛型获取更多信息）。向量的数据都被分配到堆中。你可以使用宏 `vec!` 创建向量：
+
+```rust	
+	let v = vec![1, 2, 3, 4, 5];	// v: Vec<i32>
+```
+
+（注意，这和我们原先用过的宏 `println!` 不太一样，我们宏 `Vec<T>` 使用方括号 `[]` 。Rust 允许在其它场景使用其它的括号，这仅仅就是个约定。）
+
+这是 `vec!` 的另一个方式，重复初始化值：
+
+```rust
+	let v = vec![0; 10];	//初始化10个0
+```
+
+**获取元素（Accessing Elements）**
+
+在向量中，通过使用 `[]` 获取指定索引的值：
+
+```rust
+	let v = vec![1, 2, 3, 4, 5];
+
+	println!("The third element of v is {}", v[2]);
+```
+
+索引从 `0` 开始，所以第三个值是 `v[2]`。
+
+**迭代（Interating）**
+
+当你有一个向量，你会使用 `for` 迭代获取它的元素。这有三个版本：
+
+```rust
+	let mut v = vec![1, 2, 3, 4, 5];
+
+	for i in &v {
+	    println!("A reference to {}", i);
+	}
+	
+	for i in &mut v {
+	    println!("A mutable reference to {}", i);
+	}
+	
+	for i in v {
+	    println!("Take ownership of the vector and its element {}", i);
+	}
+```
+
+向量有更多有用的方法，请阅读它们的 API。
+
