@@ -1151,3 +1151,139 @@ Rust 注重安全和速度，通过‘零消耗抽象概念（zero-cost abstract
 	fn new(buf: &mut [u8]) -> BufWriter; // 省略
 	fn new<'a>(buf: &'a mut [u8]) -> BufWriter<'a> // 展开
 ```
+
+### 11.可变（Mutability） ###
+
+可变可以改变某些值，在 Rust 中与其他语言略有不同。首先是可变的非默认状态：
+
+```rust	
+	let x = 5;
+	x = 6;	// 错误
+```
+
+我们需要介绍一下可变的关键字 `mut` ：
+
+```rust
+	let mut x = 5;
+	x = 6;	// 没有问题
+```
+
+这是可变的变量绑定。当绑定是可变的，这意味着你被允许修改绑定指向。所以上面这个例子，我们没有修改 x 的值，而是修改绑定指向另一个 `i32` 。
+
+如果你想修改绑定指向，你需要可变引用：
+
+```rust
+	let mut x = 5;
+	let y = &mut x;
+```
+
+`y` 是不可变绑定指向可变引用，这意味着你不能再对 `y` 做其它的绑定（`y = &mut z`）,但是你可以修改已经绑定到 `y` 上的值（*y = 5）。一个细微的差别。
+
+当然，如果你都想修改，可以这样：
+
+```rust
+	let mut x = 5;
+	let mut y = &mut x;
+```
+
+这样，`y` 既可以绑定其他的值，也可以修改它引用的值。
+
+需要重要注意的是 `mut` 是 模式（pattern）的一部分，所以你可以这样做：
+
+```rust
+	let (mut x, y) = (5, 6);
+	fn foo(mut x : i32){
+```
+
+**内部可变与外部可变（Interior VS. Exterior Mutability）**
+
+不管怎样，当你在 Rust 中表达 ‘不可变（immutable）’时，并不意味着是不能改变的：我们称之为‘外部可变（exterior mutability）’。思考一下，举个例子 Arc<T>：
+
+```rust
+	use std::sync::Arc;
+
+	let x = Arc::new(5);
+	let y = x.clone();
+```
+
+当我们调用 `clone()` 时，`Arc<T>` 需要更新引用数量。在这，我们不需要使用 `mut`，`x` 是一个不可变绑定，我们不需要采取 `&mut 5` 或其它方式。
+
+想要理解这些，我们需要回顾 Rust 的核心指导思想--内存安全，Rust 保证它的机制--所有权系统，和更多具体的--借用：
+
+> 你可以拥有这两种借用方式的任何一个，但是，在同一时间两种方式不能同时出现：
+> 
+> - 0 到 N 个对资源的引用（&T）
+> - 只有一个可变的引用（&mut）
+
+所以，这是‘不可变（immutability）’的真正定义：同时存在两个指针是安全的吗？在 `Arc<T>` 示例中，是安全的：可变完全地存在于结构体自身的内部。不需要使用者面对。出于这个原因，使用 `clone()` 提取 `&T`。如果想提取 `&mut T`，会出现问题。
+
+另一种类型，就像 `std::cell` 这种模式，体现了另一面：‘内部可变（Interior mutability）’，例如：
+
+```rust
+	use std::cell::RefCell;
+
+	let x = RefCell::new(42);
+	
+	let y = x.borrow_mut();
+```
+
+RefcCell 通过 `borrow_mut` 方法获取 `&mut` 引用，指向自身的内部。这样不危险吗？如果我们这样做：
+
+```rust
+	use std::cell::RefCell;
+
+	let x = RefCell::new(42);
+	
+	let y = x.borrow_mut();
+	let z = x.borrow_mut();
+```
+
+在运行时，事实上会产生混乱。`RefCell` 会这样做：在运行时，它会执行 Rust 的借用规则，如果违反规则会产生 `panic!`。这是我们能够应对 Rust 可变性规则的另一个方面。先让我们讨论它。
+
+**字段级可变（Field-level mutability）**
+
+无论是借用（`&mut`）还是绑定（`let mut`）都有可变的特性。如示例所示，这意味着你不能有一个既包含可变字段又包含不可变字段的结构体（struct）。
+
+```rust
+	struct Point {
+	    x: i32,
+	    mut y: i32, // nope
+	}
+```
+
+结构体的可变体现在它的绑定上：
+
+```rust
+	struct Point {
+	    x: i32,
+	    y: i32,
+	}
+	
+	let mut a = Point { x: 5, y: 6 };
+	
+	a.x = 10;
+	
+	let b = Point { x: 5, y: 6};
+	
+	b.x = 10; // 错误: 不能对不可变字段 `b.x` 赋值
+```
+
+不管怎么样，使用 `Cell<T>` 可以模仿字段级可变：
+
+```rust
+	use std::cell::Cell;
+
+	struct Point {
+	    x: i32,
+	    y: Cell<i32>,
+	}
+	
+	let point = Point { x: 5, y: Cell::new(6) };
+	
+	point.y.set(7);
+	
+	println!("y: {:?}", point.y);
+```
+
+将会打印 `y: Cell { value: 7}`,我们成功地更新了 `y`。
+
