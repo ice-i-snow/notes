@@ -1795,3 +1795,202 @@ Rust 再次检查了所有情况，它要求你为每一个枚举的变量都有
 
 模式很强大，好好掌握它。
 
+### 16.方法语法（Method Syntax） ###
+
+函数很有用，但是如果你想调用一连串的函数，那会很别扭。思考一下这段代码：
+
+```rust
+	baz(bar(foo)));
+```
+
+我们从左向右读这段代码，看到了‘baz bar foo’。但是这并非调用函数的顺序，正确的顺序是从内向外的：‘foo bar baz’。有没有更好的替换方式呢？
+
+```rust
+	foo.bar().baz();
+```
+
+很幸运，你已经猜到了这个关键问题，你可以！Rust 通过 `impl` 关键字提供了以上‘方法调用语法’。
+
+**方法调用（Method calls）**
+
+看看它如何工作：
+
+```rust
+	struct Circle {
+		x: f64,
+		y: f64,
+		radius: f64,
+	}
+
+	impl Circle {
+		fn area(&self) -> f64 {
+			std::f64::consts::PI * (self.radius * self.radius)
+		}
+	}
+
+	fn main {
+		let c = Cicle {x: 0.0, y: 0.0, radius: 2.0};
+
+		println!("{}", c.area());
+	}
+```
+
+打印结果：`12.566371`。
+
+我们有一个描述圆的结构体。然后编写了一个 `impl` 块，里面定义了 `area` 方法。
+
+方法的第一个参数很特殊，有3个变量：`self，&self，&mut self`。你可以认为第一个参数就是 `foo.bar` 中的 `foo`。3个变量对应 `foo` 的3个可能的不同类型：`self` 表示栈上的值，`&self` 表示它的引用，`&mut self` 表示它的可变引用。因为我们将 `&self` 设置成了 `area` 方法的参数，所以我们可以像其他参数一样使用它。因为它表示 `Circle`，所以我们能想使用其它结构体那样调用 `radius`。
+
+我们默认使用 `&self`，如同你喜欢借用胜过获取它的所有权，而且喜欢获取不可变引用胜过可变引用。这个例子展示了这3个变量：
+
+```rust
+	struct Circle {
+	    x: f64,
+	    y: f64,
+	    radius: f64,
+	}
+	
+	impl Circle {
+	    fn reference(&self) {
+	       println!("taking self by reference!");
+	    }
+	
+	    fn mutable_reference(&mut self) {
+	       println!("taking self by mutable reference!");
+	    }
+	
+	    fn takes_ownership(self) {
+	       println!("taking ownership of self!");
+	    }
+	}
+```
+
+**链式方法调用（Chaining method calls）**
+
+现在，我们已经知道了如何像 `foo.bar()` 这样调用方法。但是最初的例子该怎么办，它可是这样的：`foo.bar().baz()`？我们称之为‘方法链（method chaining）’，我们需要返回 `self`。
+
+```rust
+	struct Circle {
+		x: f64,
+		y: f64,
+		radius: f64,
+	}
+
+	impl Circle {
+		fn area(&self) -> f64 {
+			std::f64::consts::PI * (self.radius * self.radius)
+		}
+
+		fn grow(&self, increment: f64) -> Circle {
+			Circle {x: self.x, y: self.y, radius: self.radius + increment}
+		}
+	}
+
+	fn main {
+		let c = Circle {x: 0.0, y: 0.0, radius: 2.0};
+		println!("{}", c.area());
+
+		let d = c.grow(2.0).area();
+		println!("{}", d);
+	}
+```
+
+查看返回类型：
+
+```rust
+	fn grow(&self) -> Circle {
+```
+
+我们返回了 `Circle`。使用这个方法，我们可以使用任何尺寸扩大圆。
+
+**关联函数（Associated function）**
+
+你可以定义一个关联函数，而不需要使用 `self` 参数。在 Rust 中这是一种很普遍的模式：
+
+```rust
+	struct Circle {
+	    x: f64,
+	    y: f64,
+	    radius: f64,
+	}
+	
+	impl Circle {
+	    fn new(x: f64, y: f64, radius: f64) -> Circle {
+	        Circle {
+	            x: x,
+	            y: y,
+	            radius: radius,
+	        }
+	    }
+	}
+	
+	fn main() {
+	    let c = Circle::new(0.0, 0.0, 2.0);
+	}
+```
+
+‘关联函数’创建了一个新的 `Circle`。注意，关联函数使用 `Struct::function()` 语法进行调用，而不是 `ref.method()` 语法。某些语言称关联函数为‘静态方法（static methods）’。
+
+**构造模式（Builder Pattern）**
+
+我们想创建圆，但是只允许设置关注的圆的属性。另外，`x` 和 `y` 属性为 `0.0`，`radius` 属性为 `1.0`。Rust 没有方法重载、没有命名参数或没有可变参数。我们提供构造模式进行替换，如下：
+
+```rust
+	struct Circle {
+	    x: f64,
+	    y: f64,
+	    radius: f64,
+	}
+	
+	impl Circle {
+	    fn area(&self) -> f64 {
+	        std::f64::consts::PI * (self.radius * self.radius)
+	    }
+	}
+	
+	struct CircleBuilder {
+	    x: f64,
+	    y: f64,
+	    radius: f64,
+	}
+	
+	impl CircleBuilder {
+	    fn new() -> CircleBuilder {
+	        CircleBuilder { x: 0.0, y: 0.0, radius: 1.0, }
+	    }
+	
+	    fn x(&mut self, coordinate: f64) -> &mut CircleBuilder {
+	        self.x = coordinate;
+	        self
+	    }
+	
+	    fn y(&mut self, coordinate: f64) -> &mut CircleBuilder {
+	        self.y = coordinate;
+	        self
+	    }
+	
+	    fn radius(&mut self, radius: f64) -> &mut CircleBuilder {
+	        self.radius = radius;
+	        self
+	    }
+	
+	    fn finalize(&self) -> Circle {
+	        Circle { x: self.x, y: self.y, radius: self.radius }
+	    }
+	}
+	
+	fn main() {
+	    let c = CircleBuilder::new()
+	                .x(1.0)
+	                .y(2.0)
+	                .radius(2.0)
+	                .finalize();
+	
+	    println!("area: {}", c.area());
+	    println!("x: {}", c.x);
+	    println!("y: {}", c.y);
+	}
+```
+
+在这里，我们创建了另外一个结构体：`CircleBuilder`。在它内部我们定义了构造方法。在 `Circle` 中我们也定义了 `area()` 方法。我们还定义了另外一个方法： `CircleBuilder::finalize()`。这个方法通过构造器创建最终的 `Circle`。现在，我们已经使用类型系统执行我们的关注问题：我们使用 `CircleBuilder` 的这些方法约束创建我们想创建的圆。
+
