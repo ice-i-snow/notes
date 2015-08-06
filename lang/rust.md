@@ -2148,3 +2148,105 @@ Rust 有两种**字符串类型： `&str` 和 `String`**。首先讨论 **`&str`
 
 这是因为 `&String` 能够自动强制转换成 `&str`，这个特性被称为‘强制转换（Deref coercion）’。
 
+### 19.泛型（Generics） ###
+
+有时，当你编写函数或者数据类型时，你希望可以在多种参数类型下都能运行。幸运地是，Rust 的一个特性为我们提供了比较好的方式：泛型。在类型理论中，泛型被称为：‘参数的多态（parametric polymorphism）’，这意味着他们是拥有多种形态（‘poly’表示多个，‘morph’表示形态）参数（‘parametric’）的类型或者函数。
+
+总之，有足够的类型理论，那么让我们看一下通用的代码。Rust 的标准函数库提供了一个类型，`Option<T>`，这是泛型：
+
+```rust
+	enum Option<T> {
+		Some(T),
+		None,
+	}
+```
+
+刚才看到的 `<T>` 这部分，表示通用的数据类型。枚举的内部声明，也有一个 `T`，我们使用泛型替换相同的类型。这有一个使用 `Option<T>` 的列子，使用了额外的类型注释：
+
+```rust
+	let x: Option<i32> = Some(5);
+```
+
+类型被声明为 `Option<i32>`。注意，这看起来类似于 `Option<T>`。所以，`Option` 有了详细地描述，`T` 的类型是 `i32`。在绑定的右侧，我们设置了 `Some(T)`，`T` 为 `5`。因为 `5` 的类型也是 i32，所以两边匹配，Rust 顺利运行。如果不匹配，会抛出错误：
+
+>     let x: Option<f64> = Some(5);
+>     // error: mismatched types: expected `core::option::Option<f64>`,
+>     // found `core::option::Option<_>` (expected f64 but found integral variable)
+
+这并不能意味着我们不能为 `Option<T>` 设置 `f64` 类型！只要匹配就可以：
+
+```rust
+	let x: Option<i32> = Some(5);
+	let y: Option<f64> = Some(5.0f64);
+```
+
+这很好。一次定义，多处使用。
+
+泛型不仅仅应用于一个类型，考虑一下 Rust 标准函数库中的另一种类型,`Result<T, E>` :
+
+```rust
+	enum Result<T, E> {
+		Ok(T),
+		Err(E),
+	}
+```
+
+两个类型均为泛型，`T` 和 `E`。顺便说一下，大写字母可以是你喜欢的任意字母。我们定义 `Result<T, E>` 像这样：
+
+```rust
+	enum Result<A, Z> {
+		Ok(A),
+		Err(Z>,
+	}
+```
+
+按照约定，第一个通用参数是 `T` ,对应‘type’，另一个是 `E` ，对应‘error’。Rust 根本就不在乎。
+
+`Result<T, E>` 打算使用返回的计算结果，如果不能正常运行，还会返回一个错误。
+
+**泛型函数（Generic function）**
+
+使用类似语法编写一个拥有泛型的函数：
+
+```rust
+	fn take_anything<T>(x: T) {
+		// 使用 x 编写代码
+	}
+```
+
+语法包含两部分：`<T>` 表示函数有一个泛型 `T`，`x: T` 表示 x 的类型是 T。
+
+多个参数可以有相同的泛型：
+
+```rust
+	fn takes_two_of_the_same_things<T>(x: T, y: T) {
+		//...
+	}
+```
+
+这是多种类型的版本：
+
+```rust
+	fn takes_two_things<T, U>(x: T, y: U){
+		//...
+	}
+```
+
+泛型函数使用‘特性绑定（train bounds)’更有用，我们会在 trait 章节进行介绍。
+
+**泛型结构体（Generic structs）**
+
+你可以像这样在结构体中存放一个泛型：
+
+```rust
+	struct Point<T> {
+		x: T,
+		y: T,
+	}
+
+	let int_origin = Point{x: 0, y: 0};
+	let float_origin = Point{x: 0.0, y: 0.0};
+```
+
+和函数类似，`<T>` 声明了通用参数，通过类型声明使用 `x: T`。
+
