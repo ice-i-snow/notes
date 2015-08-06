@@ -2250,3 +2250,358 @@ Rust 有两种**字符串类型： `&str` 和 `String`**。首先讨论 **`&str`
 
 和函数类似，`<T>` 声明了通用参数，通过类型声明使用 `x: T`。
 
+### 20.特性（Traits） ###
+
+还记得 `impl` 关键字吗，使用方法语法调用函数：
+
+```rust
+	struct Circle {
+	    x: f64,
+	    y: f64,
+	    radius: f64,
+	}
+	
+	impl Circle {
+	    fn area(&self) -> f64 {
+	        std::f64::consts::PI * (self.radius * self.radius)
+	    }
+	}
+```
+
+特性和此非常类似，只不过定义了一个拥有方法签名的特性，然后实现结构体的特性。就象这样：
+
+```rust
+	struct Circle {
+	    x: f64,
+	    y: f64,
+	    radius: f64,
+	}
+	
+	trait HasArea {
+	    fn area(&self) -> f64;
+	}
+	
+	impl HasArea for Circle {
+	    fn area(&self) -> f64 {
+	        std::f64::consts::PI * (self.radius * self.radius)
+	    }
+	}
+```
+
+如你所见，`trait` 代码块和 `impl` 代码块很相似，但是 `trait` 没有方法体，只有一个类型签名。当我们 `impl` 特性时，使用 `impl Trait for Item`，而不是仅仅使用 `impl Trait`。
+
+我们实用特性来约束泛型。思考一下这个函数，不会被编译，并且会抛出一个类似这样的错误：
+
+```rust
+	fn print_area<T>(shape: T) {
+	    println!("This shape has an area of {}", shape.area());
+	}
+```
+
+Rust 反馈为：
+
+> error: type `T` does not implement any method in scope named `area`
+
+因为 `T` 不是任何类型，不能确定它是否实现了 `area` 方法。但是，我们可以给泛型添加‘特性约束（traits constraint）’，确保它可以这样运行：
+
+```rust
+	fn print_area<T: HasArea>(shape: T) {
+	    println!("This shape has an area of {}", shape.area());
+	}
+```
+
+语法 `T: HasArea` 表示 `任何实现了 HasArea 特性的类型`。因为特性定义了函数类型签名，所以我们能够确定任何实现 HasArea 的类型都会有 `.area()` 方法。
+
+这是一个扩展后的例子，看看是如何运行的：
+
+```rust
+	trait HasArea {
+	    fn area(&self) -> f64;
+	}
+	
+	struct Circle {
+	    x: f64,
+	    y: f64,
+	    radius: f64,
+	}
+	
+	impl HasArea for Circle {
+	    fn area(&self) -> f64 {
+	        std::f64::consts::PI * (self.radius * self.radius)
+	    }
+	}
+	
+	struct Square {
+	    x: f64,
+	    y: f64,
+	    side: f64,
+	}
+	
+	impl HasArea for Square {
+	    fn area(&self) -> f64 {
+	        self.side * self.side
+	    }
+	}
+	
+	fn print_area<T: HasArea>(shape: T) {
+	    println!("This shape has an area of {}", shape.area());
+	}
+	
+	fn main() {
+	    let c = Circle {
+	        x: 0.0f64,
+	        y: 0.0f64,
+	        radius: 1.0f64,
+	    };
+	
+	    let s = Square {
+	        x: 0.0f64,
+	        y: 0.0f64,
+	        side: 1.0f64,
+	    };
+	
+	    print_area(c);
+	    print_area(s);
+	}
+```
+
+这段程序会输出：
+
+>     This shape has an area of 3.141593
+>     This shape has an area of 1
+
+如你所见，`print_area` 是一个泛型，我们给它传递了正确的类型。如果给它传递一个错误类型：
+
+```rust
+	pring_area(5);
+```
+
+我们会得到一个编译器错误：
+
+> error: failed to find an implementation of trait main::HasArea for int
+
+到目前为止，我们只给结构体添加了特性的实现，其实我们可以给任何类型实现特性。从结束角度看，我们可以为 `i32` 实现 `HasArea`：
+
+```rust
+	trait HasArea {
+	    fn area(&self) -> f64;
+	}
+	
+	impl HasArea for i32 {
+	    fn area(&self) -> f64 {
+	        println!("this is silly");
+	
+	        *self as f64
+	    }
+	}
+	
+	5.area();
+```
+
+在私有类型上实现方法是一种很糟糕的方式，尽管这是可以的。
+
+这看起来可能很疯狂（Wild West）,其实为了防止失控，有另外两个围绕实现特性的限制。第一个是**当特性没有定义在作用域范围内，就不会被应用**。这有一个例子：标准函数库提供了 `Write` 特性，为 `File`s 提供了额外的功能，对文件执行 I/O 操作。默认的，`File` 没有这些方法：
+
+```rust
+	let mut f = std::fs::File::open("foo.txt").ok().expect("Couldn’t open foo.txt");
+	let result = f.write("whatever".as_bytes());
+```
+
+这是错误信息：
+
+>     error: type `std::fs::File` does not implement any method in scope named `write`
+> 
+>     let result = f.write(b"whatever");
+>                    ^~~~~~~~~~~~~~~~~~
+
+首先，我们需要 `use Write` ：
+
+```rust
+	use std::io::Write;
+
+	let mut f = std::fs::File::open("foo.txt").ok().expect("Couldn’t open foo.txt");
+	let result = f.write("whatever".as_bytes());
+```
+
+这样编译没有错误。
+
+这意味着，虽然有些人做了类似给 `int` 添加方法这样糟糕的事情，但是，只要你不 `use` 特性，就不会对你产生影响。
+
+这是另外一个对于实现特性的约束。**任何你编写的 `impl` 特性和类型，必须由你亲自定义。**所以，我们可以为 `i32` 实现 `HasArea` 类型，因为这是我们自己编写的代码。如果我们尝试为 `i32` 实现 Rust 已经提供的特性 `Float`，将会失败，因为无论是特性还是类型都不是我们自己编写的代码。
+
+关于特性的最后一件事：拥有特性绑定的泛型函数使用‘单一形态monomorphization’（mono：单一，morph：形态），所以它们是静态的分配器。这意味着什么？在 `trait objects` 章节获取更多内容。
+
+**多特性绑定（Multiple trait bounds）**
+
+已经知道如何使用特性绑定一个泛型参数：
+
+```rust
+	fn foo<T: Clone>(x: T) {
+	    x.clone();
+	}
+```
+
+**如果你需要多个绑定，使用 `+`**：
+
+```rust
+	use std::fmt::Debug;
+	
+	fn foo<T: Clone + Debug>(x: T) {
+	    x.clone();
+	    println!("{:?}", x);
+	}
+```
+
+`T` 现在既是 `Clone` 又是 `Debug`。
+
+**where 子句（Where clause）**
+
+编写一个拥有少量的泛型和少数的特性绑定的函数还是挺不错的，但是随着数量的增加，这种语法会逐渐变得不合适：
+
+```rust
+	 use std::fmt::Debug;
+
+	fn foo<T: Clone, K: Clone + Debug>(x: T, y: K) {
+	    x.clone();
+	    y.clone();
+	    println!("{:?}", y);
+	}
+```
+
+函数的名字在最左边，参数列表在最右边。函数范围和原来一致。
+
+Rust 有解决方案，称之为 `Where 子句`。
+
+```rust
+	use std::fmt::Debug;
+	
+	fn foo<T: Clone, K: Clone + Debug>(x: T, y: K) {
+	    x.clone();
+	    y.clone();
+	    println!("{:?}", y);
+	}
+	
+	fn bar<T, K>(x: T, y: K) where T: Clone, K: Clone + Debug {
+	    x.clone();
+	    y.clone();
+	    println!("{:?}", y);
+	}
+	
+	fn main() {
+	    foo("Hello", "world");
+	    bar("Hello", "workd");
+	}
+```
+
+`foo()` 使用原先的语法，`bar()` 使用 `where` 子句。你需要做的就是当定义类型参数时，离开函数范围，在参数列表后面添加 `where` 子句。对于很长的列表，可以加入空格：
+
+```rust
+	use std::fmt::Debug;
+
+	fn bar<T, K>(x: T, y: K)
+	    where T: Clone,
+	          K: Clone + Debug {
+	
+	    x.clone();
+	    y.clone();
+	    println!("{:?}", y);
+	}
+```
+
+在复杂的情况下，这种灵活性显得很清晰。
+
+
+`where` 还有比这更强大的语法，例如：
+
+```rust
+	trait ConvertTo<Output> {
+	    fn convert(&self) -> Output;
+	}
+	
+	impl ConvertTo<i64> for i32 {
+	    fn convert(&self) -> i64 { *self as i64 }
+	}
+	
+	// can be called with T == i32
+	fn normal<T: ConvertTo<i64>>(x: &T) -> i64 {
+	    x.convert()
+	}
+	
+	// can be called with T == i64
+	fn inverse<T>() -> T
+	        // this is using ConvertTo as if it were "ConvertFrom<i32>"
+	        where i32: ConvertTo<T> {
+	    1i32.convert()
+	}
+```
+
+这展示了 `where` 子句的特性：允许左右边范围是一个任意类型（此例中是 `i32`），不仅仅是一个简单的类型参数（例如 `T`）。
+
+**默认方法（Default methods）**
+
+这是我们学习的最后一个特性：默认方法。这是最简单的，只要展示一个例子：
+
+```rust
+	trait Foo {
+	    fn bar(&self);
+	
+	    fn baz(&self) { println!("We called baz."); }
+	}
+```
+
+`Foo` 的实现者需要实现 `bar()` 方法，但是不需要实现 `baz()` 方法。它们有默认的行为，当然它们可以选择覆盖这些行为：
+
+```rust
+	struct UseDefault;
+
+	impl Foo for UseDefault {
+	    fn bar(&self) { println!("We called bar."); }
+	}
+	
+	struct OverrideDefault;
+	
+	impl Foo for OverrideDefault {
+	    fn bar(&self) { println!("We called bar."); }
+	
+	    fn baz(&self) { println!("Override baz!"); }
+	}
+	
+	let default = UseDefault;
+	default.baz(); // prints "We called baz."
+	
+	let over = OverrideDefault;
+	over.baz(); // prints "Override baz!"
+```
+
+**继承（Inheritance）**
+
+有时，实现特性需要实现另一个特性：
+
+```rust
+	trait Foo {
+	    fn foo(&self);
+	}
+	
+	trait FooBar : Foo {
+	    fn foobar(&self);
+	}
+```
+
+`FooBar` 的实现者也需要实现 `Foo`，像这样：
+
+```rust
+	struct Baz;
+	
+	impl Foo for Baz {
+	    fn foo(&self) { println!("foo"); }
+	}
+	
+	impl FooBar for Baz {
+	    fn foobar(&self) { println!("foobar"); }
+	}
+```
+
+如果忘记实现 `Foo`，Rust 会告诉我们：
+
+> error: the trait `main::Foo` is not implemented for the type `main::Baz` [E0277]
+
