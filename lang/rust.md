@@ -2605,3 +2605,53 @@ Rust 有解决方案，称之为 `Where 子句`。
 
 > error: the trait `main::Foo` is not implemented for the type `main::Baz` [E0277]
 
+### 21.Drop ###
+
+我们已经讨论过特性了，让我们讨论一个 Rust 标准函数库提供的特别的特性--`Drop`。`Drop` 特性提供了一种方式：**当值离开作用域时，还可以执行某些代码**。例如：
+
+```rust
+	struct HasDrop;
+	
+	impl Drop for HasDrop {
+	    fn drop(&mut self) {
+	        println!("Dropping!");
+	    }
+	}
+	
+	fn main() {
+	    let x = HasDrop;
+	
+	    // do stuff
+	
+	} // x 离开了作用域
+```
+
+当 `x` 在 `main()` 的结尾离开作用域时，`Drop` 代码将会被执行。`Drop` 有一个方法，也被叫做 `drop()`。它需要一个可变的引用 `self`。
+
+这就是 `Drop`，它的结构很简单，但还是有些微妙之处。例如，**值的显示和它们的定义顺序是相反的**。这是另一个例子：
+
+```rust
+	struct Firework {
+	    strength: i32,
+	}
+	
+	impl Drop for Firework {
+	    fn drop(&mut self) {
+	        println!("BOOM times {}!!!", self.strength);
+	    }
+	}
+	
+	fn main() {
+	    let firecracker = Firework { strength: 1 };
+	    let tnt = Firework { strength: 100 };
+	}
+	This will output:
+	
+	BOOM times 100!!!
+	BOOM times 1!!!
+```
+
+TNT 在 firecracker 之前显示，因为它是后声明的。后入，先出。
+
+所以 `Drop` 用来做什么好呢？`Drop` 用来清理与 `struct` 关联的所有资源。例如，`Arc<T> type` 是引用计数类型。当 `Drop` 被调用时，会递减引用的数量，当引用数变成零时，将会清空底层的值。
+
