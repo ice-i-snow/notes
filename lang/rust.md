@@ -2718,3 +2718,223 @@ TNT 在 firecracker 之前显示，因为它是后声明的。后入，先出。
 	}
 ```
 
+### 23. 特性对象（Trait Ojbects） ###
+
+当代码涉及到多态时，这就需要一种机制来确定一个实际运行地具体版本。这被称之为‘调度（dispatch）’。调度主要是两种方式：静态调度和动态调度。虽然 Rust 偏爱静态调度，但是它依然通过一种称之为‘特性对象（trait objects）’的机制提供动态调度。
+
+**背景（Background）**
+
+此章节的剩余部分，还需要一些特性和实现。先让我们实现一个简单的 `Foo`。它有一个方法，希望返回 `String`：
+
+```rust
+	trait Foo {
+		fn method(&self) -> String;
+	}
+```
+
+我们会为 `u8` 和 `String` 实现这个特性：
+
+```rust
+	impl Foo for u8 {
+		fn method(&self) -> String {
+			format("u8: {}", *self)
+		}
+	}
+
+	impl Foo for String {
+		fn method(&self) -> String {
+			format("string: {}", *self)
+		}
+	}
+```
+
+**静态调度（static dispatch）**
+
+我们利用特性约束这个特性执行静态调度：
+
+```rust
+	fn do_something<T: Foo>(x: T) {
+	    x.method();
+	}
+	
+	fn main() {
+	    let x = 5u8;
+	    let y = "Hello".to_string();
+	
+	    do_something(x);
+	    do_something(y);
+	}
+```
+
+此例中，Rust 使用‘单态（monomorphization）’执行静态调度。这意味着 Rust 会为 `u8` 和 `String` 创建 `do_something()` 的特殊版本，在调用时会调用这些特殊的函数。换句话说，Rust 生成的代码类似这样的：
+
+```rust
+	fn do_something_u8(x: u8) {
+	    x.method();
+	}
+	
+	fn do_something_string(x: String) {
+	    x.method();
+	}
+	
+	fn main() {
+	    let x = 5u8;
+	    let y = "Hello".to_string();
+	
+	    do_something_u8(x);
+	    do_something_string(y);
+	}
+```
+
+这有很多好处：静态调度允许函数内联调用，因为这些被调用的函数在编译期是可见的，并且内联的关键是效率高。虽然静态调度运行速度快，但是却有个折衷的问题：‘代码臃肿（code bloat）’，这是因为存在很多相同函数的二进制副本，每个类型对应一个。
+
+此外，编译器并不完美，很多‘优化（optimize）’代码降低运行速度。例如：内联函数使指令缓存迅速膨胀（缓存规则无处不在）。这部分的原因 `#[inline]` 和 `#[inline(always)]` 要谨慎使用，这也是为什么有时候使用动态调度效率高的原因。
+
+尽管如此，通常情况下使用静态调度会有更高的效率，并且会有一个简单的静态调度包装器，可以动态调度，但是反之则不然，这就意味着静态调度更灵活一些。标准函数库尝试静态调度，可能也是这个原因。
+
+**动态调度（Dynamic diapatch）**
+
+Rust 通过被称为‘特性对象（trait objects）’的特性，提供了动态调度。特性对象，例如`&Foo` 和 `Box<Foo>`，用来存储实现了给定特性的任意类型的标准值，只有在运行时才会明确具体的类型。
+
+可以通过指针指向具体的类型获取特性对象，此类型通过 *转型（casting）*（例如： `&x as &Foo`） 和 *控制（coercing）*（例如：使用 `&x` 作为函数参数获取 `&Foo`）实现特性。
+
+虽然这些特性对象的控制和转型同样适用于指针，类似 `&mut T` 转换成 `&mut Foo` 和 `Box<T>` 转换成 `Box<Foo>`，但是也仅限于此。控制和转型是相同的。
+
+这个操作被认为‘擦除（erasing）’编译器关于指针特殊类型的知识，因此特性对象有时涉及到‘类型擦除（type erasure)’。
+
+回到上面的例子中，我们使用相同的特性执行动态调度，使用转型的特性对象：
+
+```rust
+	fn do_something(x: &Foo) {
+	    x.method();
+	}
+	
+	fn main() {
+	    let x = 5u8;
+	    do_something(&x as &Foo);
+	}
+```
+
+或者使用控制的方式：
+
+```rust
+	fn do_something(x: &Foo) {
+	    x.method();
+	}
+	
+	fn main() {
+	    let x = "Hello".to_string();
+	    do_something(&x);
+	}
+```
+
+获取特性对象的函数不会特别说明每一个实现了 `Foo` 的类型：仅仅生成一个拷贝，通常有更少的代码冗余（但是并非一直如此）。不管怎样，请求的消耗慢于虚拟函数的调用，并且能够有效地抑制任何内联机会和相关优化的发生。
+
+**为什么是指针（Why pointers)**
+
+和许多管理型的语言不同，Rust 默认不会在指针后面赋值，所以类型会有不同的长度。在编译期知道值的长度对某些事情很重要，例如作为参数传递给函数，在栈中进行移动，在堆中分配（解除分配）空间进行存储。
+
+对于 `Foo`，我们需要一个值，至少是 `String`（24byte） 或 `u8`（1byte） 其中之一，也可以是任何实现 `Foo`（任意字节数） 依赖包装的类型。如果不以指针进行存储，没有任何方式保证最后这点能够工作，因为其它类型可以任意扩大。
+
+在指针后面赋值意味着当我们讨论特性对象时，值的长度不明确，只有指针自己的长度。
+
+**描述（Representation）**
+
+可以在特性对象上调用特性的方法，通过一个特殊的函数指针记录，它通常被称为‘vtable’（编译器创建并管理）。
+
+特性对象既简单又复杂：它的核心描述和设计很直截了当，但是会存在难懂的错误和出人意料的行为。
+
+让我们根据特性对象的运行时描述，从简单开始。`std::raw` 模块包含结构体，使用了复杂的内置类型设计，包含特性对象：
+
+```rust
+	pub struct TraitObject {
+	    pub data: *mut (),
+	    pub vtable: *mut (),
+	}
+```
+
+一个类似 `&Foo` 的特性对象，由‘data’指针和‘vtable’指针组成。
+
+对于 `T` ，数据指针（data pointer）选址特性对象储存的数据（不清楚的类型 `T`），虚拟方法列表指针（vtable pointer）指向虚拟方法列表，用来对应 `Foo` 的实现。
+
+虚拟方法列表本质上是一个函数指针的结构体，在实现中为每一个方法指明具体的机器代码块。就像 `trait_object.method()` 方法，它会检索出正确虚拟方法列表然后动态地进行调用，例如：
+
+```rust
+	struct FooVtable {
+	    destructor: fn(*mut ()),
+	    size: usize,
+	    align: usize,
+	    method: fn(*const ()) -> String,
+	}
+	
+	// u8:
+	
+	fn call_method_on_u8(x: *const ()) -> String {
+	    // the compiler guarantees that this function is only called
+	    // with `x` pointing to a u8
+	    let byte: &u8 = unsafe { &*(x as *const u8) };
+	
+	    byte.method()
+	}
+	
+	static Foo_for_u8_vtable: FooVtable = FooVtable {
+	    destructor: /* compiler magic */,
+	    size: 1,
+	    align: 1,
+	
+	    // cast to a function pointer
+	    method: call_method_on_u8 as fn(*const ()) -> String,
+	};
+	
+	
+	// String:
+	
+	fn call_method_on_String(x: *const ()) -> String {
+	    // the compiler guarantees that this function is only called
+	    // with `x` pointing to a String
+	    let string: &String = unsafe { &*(x as *const String) };
+	
+	    string.method()
+	}
+	
+	static Foo_for_String_vtable: FooVtable = FooVtable {
+	    destructor: /* compiler magic */,
+	    // values for a 64-bit computer, halve them for 32-bit ones
+	    size: 24,
+	    align: 8,
+	
+	    method: call_method_on_String as fn(*const ()) -> String,
+	};
+```
+
+在每一个虚拟方法列表中，`destructor` 字段都会只想一个函数，这个函数会清理任何虚拟方法列表的类型的资源：这对于 `u8` 是无所谓的，但是对于 `String` 这可以释放内存。对于像 `Box<Foo>` 自定义特性对象，这是必须的，当这些对象离开作用域后，他们需要清理 `Box` 的分配和内部类型。`size` 和 `align` 字段分别存放清除类型的大小和对齐要求。因为这些信息被嵌入到析构函数中（destructor），其实并没有使用它们，但是将来会应用，因为特性对象逐渐变得更加灵活。
+
+假设我们已经获取了实现 `Foo` 的值，清晰的构造函数结构和 `Foo` 特性对象的使用，看起来有点像这样（忽略类型的不匹配：她们仅仅就是指针）：
+
+```rust
+	let a: String = "foo".to_string();
+	let x: u8 = 1;
+	
+	// let b: &Foo = &a;
+	let b = TraitObject {
+	    // store the data
+	    data: &a,
+	    // store the methods
+	    vtable: &Foo_for_String_vtable
+	};
+	
+	// let y: &Foo = x;
+	let y = TraitObject {
+	    // store the data
+	    data: &x,
+	    // store the methods
+	    vtable: &Foo_for_u8_vtable
+	};
+	
+	// b.method();
+	(b.vtable.method)(b.data);
+	
+	// y.method();
+	(y.vtable.method)(y.data);
+```
+
