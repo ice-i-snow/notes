@@ -2655,3 +2655,66 @@ TNT 在 firecracker 之前显示，因为它是后声明的。后入，先出。
 
 所以 `Drop` 用来做什么好呢？`Drop` 用来清理与 `struct` 关联的所有资源。例如，`Arc<T> type` 是引用计数类型。当 `Drop` 被调用时，会递减引用的数量，当引用数变成零时，将会清空底层的值。
 
+### 22. if let ###
+
+`if let` 允许将 `if` 和 `let` 组合到一起，减少某些模式匹配的开销。
+
+例如，让我们看一下 `Option<T>` 的分类。如果它是 `Some<T>` 则调用一个函数，如果是 `None` 则不做任何事。就象这样：
+
+```rust
+	match option {
+		Some(x) => { foo(x) },
+		None => {},
+	}
+```
+
+在这里，我们不需要使用 `match`，例如，可以使用 `if`：
+
+```rust
+	if option.is_some() {
+	    let x = option.unwrap();
+	    foo(x);
+	} 
+```
+
+这两种方式都不是特别吸引人。我们可以使用 `if let` 这种更好的方式去实现它：
+
+```rust
+	if let Some(x) = option {
+	    foo(x);
+	}
+```
+
+如果模式匹配成功，它会将任何有价值的值绑定到模式中的标识符，然后评估表达式。
+
+如果在模式不匹配的情况下，你好要做其它的处理，可以使用 `else`：
+
+```rust
+	if let Some(x) = option {
+	    foo(x);
+	} else {
+	    bar();
+	}
+```
+
+**while let**
+
+相类似的，`while let` 可以应用到条件循环，直到值匹配到某个模式。看下面的代码：
+
+```rust
+	loop {
+	    match option {
+	        Some(x) => println!("{}", x),
+	        _ => break,
+	    }
+	}
+```
+
+转换后：
+
+```rust
+	while let Some(x) = option {
+		println!("{}", x);
+	}
+```
+
